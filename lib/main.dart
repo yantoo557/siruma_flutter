@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'pages/login_page.dart';
+import 'pages/user/dashboard/user_dashboard.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,16 +13,19 @@ class SirumaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'SIRUMA',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: const Color(0xFFF4F8F6),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF006B50),
+          primary: const Color(0xFF006B50),
         ),
       ),
-      home: const LoginPage(),
+      home: const UserDashboardPage(
+        namaPengguna: 'Pengguna',
+      ),
     );
   }
 }
