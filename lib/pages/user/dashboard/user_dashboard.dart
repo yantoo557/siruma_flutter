@@ -1,6 +1,9 @@
-import '../assessment/select_perumahan_page.dart';
-
 import 'package:flutter/material.dart';
+
+import '../assessment/select_perumahan_page.dart';
+import '../draft/draft_list_page.dart';
+import '../history/history_page.dart';
+import '../profile/profile_page.dart';
 
 class UserDashboardPage extends StatefulWidget {
   final String namaPengguna;
@@ -26,20 +29,11 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       body: SafeArea(
         child: IndexedStack(
           index: _selectedIndex,
+
           children: [
             _buildDashboard(),
-            _buildPlaceholder(
-              icon: Icons.history,
-              title: 'Riwayat Monitoring',
-              description:
-                  'Riwayat monitoring rumah dan aset Anda akan tampil di sini.',
-            ),
-            _buildPlaceholder(
-              icon: Icons.person_outline,
-              title: 'Profil Pengguna',
-              description:
-                  'Informasi dan pengaturan akun Anda akan tampil di sini.',
-            ),
+            const HistoryPage(),
+            ProfilePage(namaPengguna: widget.namaPengguna),
           ],
         ),
       ),
@@ -101,10 +95,46 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
 
           const SizedBox(height: 12),
 
-          _buildInformationCard(
-            icon: Icons.article_outlined,
-            title: 'Belum ada monitoring aktif',
-            description: 'Monitoring yang Anda buat akan tampil di sini.',
+          _buildSummaryCard(
+            icon: Icons.folder_open_outlined,
+            title: 'Draft Saya',
+            count: '2',
+            description: 'Monitoring belum diajukan',
+            color: const Color(0xFFE8F4EE),
+            iconColor: primaryGreen,
+            onTap: _bukaDraft,
+          ),
+
+          const SizedBox(height: 10),
+
+          _buildSummaryCard(
+            icon: Icons.hourglass_top_rounded,
+            title: 'Menunggu Approval',
+            count: '3',
+            description: 'Monitoring sedang diperiksa',
+            color: const Color(0xFFEAF1F8),
+            iconColor: const Color(0xFF35658A),
+            onTap: () {
+              setState(() {
+                _selectedIndex = 1;
+              });
+            },
+          ),
+
+          const SizedBox(height: 10),
+
+          _buildSummaryCard(
+            icon: Icons.check_circle_outline,
+            title: 'Disetujui',
+            count: '5',
+            description: 'Monitoring telah disetujui',
+            color: const Color(0xFFE8F4EE),
+            iconColor: primaryGreen,
+            onTap: () {
+              setState(() {
+                _selectedIndex = 1;
+              });
+            },
           ),
 
           const SizedBox(height: 28),
@@ -120,6 +150,17 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
           ),
         ],
       ),
+    );
+  }
+
+  // =========================
+  // NAVIGASI DRAFT
+  // =========================
+
+  void _bukaDraft() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DraftListPage()),
     );
   }
 
@@ -204,6 +245,83 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(13),
           ),
+        ),
+      ),
+    );
+  }
+
+  // =========================
+  // RINGKASAN MONITORING
+  // =========================
+
+  Widget _buildSummaryCard({
+    required IconData icon,
+    required String title,
+    required String count,
+    required String description,
+    required Color color,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFFE1EBE5)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 43,
+              height: 43,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+
+            const SizedBox(width: 13),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: darkGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(fontSize: 11, color: secondaryText),
+                  ),
+                ],
+              ),
+            ),
+
+            Text(
+              count,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: iconColor,
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            const Icon(Icons.chevron_right, size: 20, color: secondaryText),
+          ],
         ),
       ),
     );

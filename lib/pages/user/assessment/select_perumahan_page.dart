@@ -1,23 +1,21 @@
-
 import 'package:flutter/material.dart';
+
+import 'select_unit_page.dart';
 
 class SelectPerumahanPage extends StatefulWidget {
   const SelectPerumahanPage({super.key});
 
   @override
-  State<SelectPerumahanPage> createState() =>
-      _SelectPerumahanPageState();
+  State<SelectPerumahanPage> createState() => _SelectPerumahanPageState();
 }
 
-class _SelectPerumahanPageState
-    extends State<SelectPerumahanPage> {
+class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
   static const Color primaryGreen = Color(0xFF006B50);
   static const Color darkGreen = Color(0xFF173D32);
   static const Color backgroundColor = Color(0xFFF4F8F6);
   static const Color secondaryText = Color(0xFF718078);
 
-  final TextEditingController _searchController =
-      TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   final List<Map<String, dynamic>> _perumahanList = [
     {
@@ -58,10 +56,7 @@ class _SelectPerumahanPageState
                 children: [
                   const Text(
                     'Pilih perumahan yang akan dimonitor.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: secondaryText,
-                    ),
+                    style: TextStyle(fontSize: 14, color: secondaryText),
                   ),
 
                   const SizedBox(height: 10),
@@ -103,28 +98,18 @@ class _SelectPerumahanPageState
       ),
       leading: IconButton(
         onPressed: () => Navigator.pop(context),
-        icon: const Icon(
-          Icons.arrow_back_ios_new,
-          size: 20,
-          color: darkGreen,
-        ),
+        icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: darkGreen),
       ),
       bottom: const PreferredSize(
         preferredSize: Size.fromHeight(1),
-        child: Divider(
-          height: 1,
-          color: Color(0xFFE5ECE8),
-        ),
+        child: Divider(height: 1, color: Color(0xFFE5ECE8)),
       ),
     );
   }
 
   Widget _buildDemoLabel() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0xFFE3F3ED),
         borderRadius: BorderRadius.circular(20),
@@ -146,9 +131,7 @@ class _SelectPerumahanPageState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFD8E5DE),
-        ),
+        border: Border.all(color: const Color(0xFFD8E5DE)),
       ),
       child: TextField(
         controller: _searchController,
@@ -159,15 +142,8 @@ class _SelectPerumahanPageState
         },
         decoration: const InputDecoration(
           hintText: 'Cari nama perumahan...',
-          hintStyle: TextStyle(
-            color: Color(0xFF8A9A92),
-            fontSize: 14,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: secondaryText,
-            size: 21,
-          ),
+          hintStyle: TextStyle(color: Color(0xFF8A9A92), fontSize: 14),
+          prefixIcon: Icon(Icons.search, color: secondaryText, size: 21),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 15),
         ),
@@ -184,10 +160,7 @@ class _SelectPerumahanPageState
         child: Center(
           child: Text(
             'Perumahan tidak ditemukan.',
-            style: TextStyle(
-              color: secondaryText,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: secondaryText, fontSize: 13),
           ),
         ),
       );
@@ -208,17 +181,12 @@ class _SelectPerumahanPageState
             },
             borderRadius: BorderRadius.circular(15),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 13,
-                vertical: 13,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(
-                  color: isSelected
-                      ? primaryGreen
-                      : const Color(0xFFE1EBE5),
+                  color: isSelected ? primaryGreen : const Color(0xFFE1EBE5),
                   width: isSelected ? 1.5 : 1,
                 ),
               ),
@@ -274,9 +242,7 @@ class _SelectPerumahanPageState
                     isSelected
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
-                    color: isSelected
-                        ? primaryGreen
-                        : const Color(0xFFB9C9C1),
+                    color: isSelected ? primaryGreen : const Color(0xFFB9C9C1),
                     size: 21,
                   ),
                 ],
@@ -296,11 +262,7 @@ class _SelectPerumahanPageState
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 15),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFFE5ECE8),
-          ),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE5ECE8))),
       ),
       child: SizedBox(
         height: 49,
@@ -319,10 +281,7 @@ class _SelectPerumahanPageState
           ),
           child: const Text(
             'Lanjutkan',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
       ),
@@ -334,10 +293,12 @@ class _SelectPerumahanPageState
       (item) => item['id'] == _selectedPerumahanId,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Perumahan ${selectedPerumahan['nama']} dipilih.',
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectUnitPage(
+          namaPerumahan: selectedPerumahan['nama'].toString(),
+          namaDeveloper: 'PT Contoh Developer Nusantara',
         ),
       ),
     );
