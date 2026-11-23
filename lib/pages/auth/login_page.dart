@@ -1,7 +1,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/services/auth_service.dart';
 
+import '../user/dashboard/user_dashboard.dart';
+import '../super_admin/dashboard/super_admin_dashboard.dart';
+import '../super_approval/dashboard/super_approval_dashboard.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -29,28 +33,77 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+Future<void> _handleLogin() async {
+  FocusScope.of(context).unfocus();
 
-    setState(() => _isLoading = true);
+  if (!_formKey.currentState!.validate()) return;
 
-    // Simulasi login frontend.
-    // Nantinya dihubungkan ke API Laravel SIRUMA.
-    await Future.delayed(const Duration(seconds: 2));
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    // Login melalui API Laravel
+    final user = await AuthService.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
 
     if (!mounted) return;
 
-    setState(() => _isLoading = false);
+    // Tentukan dashboard berdasarkan role_id
+    Widget dashboard;
+
+    switch (user.roleId) {
+      case 1:
+        dashboard = UserDashboardPage(
+          namaPengguna: user.nama,
+        );
+        break;
+
+      case 2:
+        dashboard = const SuperApprovalDashboardPage();
+        break;
+
+      case 3:
+        dashboard = SuperAdminDashboardPage(
+          namaPengguna: user.nama,
+        );
+        break;
+
+      default:
+        await AuthService.logout();
+        throw Exception('Role pengguna tidak dikenali.');
+    }
+
+    if (!mounted) return;
+
+    // Pindah ke dashboard sesuai role
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => dashboard,
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Login berhasil diuji'),
-        backgroundColor: green,
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst('Exception: ', ''),
+        ),
+        backgroundColor: Colors.red,
       ),
     );
   }
+}
+
 
   InputDecoration _inputDecoration({
     required String hint,

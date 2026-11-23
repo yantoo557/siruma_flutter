@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'pages/user/dashboard/user_dashboard.dart';
+import 'pages/auth/login_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,9 +23,7 @@ class SirumaApp extends StatelessWidget {
           primary: const Color(0xFF006B50),
         ),
       ),
-      home: const UserDashboardPage(
-        namaPengguna: 'Pengguna',
-      ),
+      home: const LoginPage(),
     );
   }
 }

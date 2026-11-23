@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../account/account_info_page.dart';
+import '../account/security_page.dart';
+import '../help/bantuan_page.dart';
+import '../about/tentang_siruma_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String namaPengguna;
@@ -551,30 +554,43 @@ class _ProfilePageState extends State<ProfilePage> {
                     icon: Icons.lock_outline,
                     title: 'Keamanan Akun',
                     subtitle: 'Pengaturan keamanan akun',
-                    onTap: () => _showInfo(
-                      'Keamanan Akun',
-                      'Pengaturan keamanan akan tersedia setelah integrasi autentikasi.',
-                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SecurityPage(),
+                        ),
+                      );
+                    },
                   ),
                   const Divider(height: 1, color: Color(0xFFE9EFEB)),
                   _menuItem(
                     icon: Icons.help_outline,
                     title: 'Bantuan',
                     subtitle: 'Informasi penggunaan aplikasi',
-                    onTap: () => _showInfo(
-                      'Bantuan SIRUMA',
-                      'Hubungi administrator apabila membutuhkan bantuan penggunaan aplikasi.',
-                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BantuanPage(),
+                        ),
+                      );
+                    },
                   ),
                   const Divider(height: 1, color: Color(0xFFE9EFEB)),
+
                   _menuItem(
                     icon: Icons.info_outline,
                     title: 'Tentang SIRUMA',
                     subtitle: 'Informasi aplikasi',
-                    onTap: () => _showInfo(
-                      'Tentang SIRUMA',
-                      'SIRUMA adalah Sistem Informasi Rumah dan Aset untuk mendukung proses monitoring dan penilaian properti.',
-                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TentangSirumaPage(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
