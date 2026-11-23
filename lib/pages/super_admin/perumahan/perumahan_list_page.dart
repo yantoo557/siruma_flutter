@@ -4,9 +4,12 @@ import '../../../core/services/perumahan_service.dart';
 import '../../../models/perumahan_model.dart';
 import 'perumahan_form_page.dart';
 import 'perumahan_detail_page.dart';
+import '../blok/blok_list_page.dart';
 
 class PerumahanListPage extends StatefulWidget {
-  const PerumahanListPage({super.key});
+  final bool modeKelolaRumah;
+
+  const PerumahanListPage({super.key, this.modeKelolaRumah = false});
 
   @override
   State<PerumahanListPage> createState() => _PerumahanListPageState();
@@ -123,7 +126,7 @@ class _PerumahanListPageState extends State<PerumahanListPage> {
 
                       const SizedBox(height: 14),
 
-                      _buildAddButton(),
+                      if (!widget.modeKelolaRumah) _buildAddButton(),
 
                       const SizedBox(height: 18),
 
@@ -229,9 +232,9 @@ class _PerumahanListPageState extends State<PerumahanListPage> {
               ),
             ),
           ),
-          const Text(
-            'Data Perumahan',
-            style: TextStyle(
+          Text(
+            widget.modeKelolaRumah ? 'Pilih Perumahan' : 'Data Perumahan',
+            style: const TextStyle(
               color: darkGreen,
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -313,21 +316,34 @@ class _PerumahanListPageState extends State<PerumahanListPage> {
   Widget _buildPerumahanCard(PerumahanModel perumahan) {
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PerumahanDetailPage(
-              perumahanId: perumahan.id,
-              namaDeveloper: perumahan.developer,
-              namaPerumahan: perumahan.namaPerumahan,
-              alamatPerumahan: perumahan.lokasi,
+        if (widget.modeKelolaRumah) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlokListPage(
+                perumahanId: perumahan.id,
+                namaDeveloper: perumahan.developer,
+                namaPerumahan: perumahan.namaPerumahan,
+              ),
             ),
-          ),
-        ).then((result) {
-          if (result == true) {
-            _loadPerumahan();
-          }
-        });
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PerumahanDetailPage(
+                perumahanId: perumahan.id,
+                namaDeveloper: perumahan.developer,
+                namaPerumahan: perumahan.namaPerumahan,
+                alamatPerumahan: perumahan.lokasi,
+              ),
+            ),
+          ).then((result) {
+            if (result == true) {
+              _loadPerumahan();
+            }
+          });
+        }
       },
       borderRadius: BorderRadius.circular(14),
       child: Container(

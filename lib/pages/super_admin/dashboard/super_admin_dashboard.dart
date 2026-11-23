@@ -95,7 +95,8 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const PerumahanListPage(),
+                  builder: (context) =>
+                      const PerumahanListPage(modeKelolaRumah: true),
                 ),
               );
             },
