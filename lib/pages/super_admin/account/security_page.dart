@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import '../../../core/services/api_service.dart';
 
 class SecurityPage extends StatefulWidget {
   const SecurityPage({super.key});
@@ -22,6 +23,7 @@ class _SecurityPageState extends State<SecurityPage> {
   bool _sembunyikanLama = true;
   bool _sembunyikanBaru = true;
   bool _sembunyikanKonfirmasi = true;
+  bool _sedangMenyimpan = false;
 
   @override
   void dispose() {
@@ -82,16 +84,58 @@ class _SecurityPageState extends State<SecurityPage> {
     );
   }
 
-  void _simpanPerubahan() {
+  Future<void> _simpanPerubahan() async {
+    if (_sedangMenyimpan) return;
+
     if (!_formKey.currentState!.validate()) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Validasi berhasil. Simpan password akan tersedia setelah integrasi autentikasi.',
+    setState(() {
+      _sedangMenyimpan = true;
+    });
+
+    try {
+      final response = await ApiService.put(
+        'change-password',
+        {
+          'old_password': _passwordLamaController.text,
+          'new_password': _passwordBaruController.text,
+          'new_password_confirmation': _konfirmasiController.text,
+        },
+      );
+
+      if (!mounted) return;
+
+      _passwordLamaController.clear();
+      _passwordBaruController.clear();
+      _konfirmasiController.clear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response['message']?.toString() ??
+                'Password berhasil diperbarui.',
+          ),
+          backgroundColor: primaryGreen,
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      final pesanError = e.toString().replaceFirst('Exception: ', '');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(pesanError),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sedangMenyimpan = false;
+        });
+      }
+    }
   }
 
   @override
@@ -258,19 +302,30 @@ class _SecurityPageState extends State<SecurityPage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _simpanPerubahan,
+                  onPressed:
+                      _sedangMenyimpan ? null : _simpanPerubahan,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: primaryGreen.withValues(alpha: 0.6),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Simpan Perubahan',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  child: _sedangMenyimpan
+                      ? const SizedBox(
+                          width: 21,
+                          height: 21,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Simpan Perubahan',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
 

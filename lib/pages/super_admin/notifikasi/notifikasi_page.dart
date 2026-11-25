@@ -1,6 +1,10 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../core/services/notification_service.dart';
+import '../../../models/notification_model.dart';
+import 'detail_notifikasi.dart';
+
 class NotifikasiPage extends StatefulWidget {
   const NotifikasiPage({super.key});
 
@@ -15,74 +19,227 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
   static const Color secondaryText = Color(0xFF718078);
 
   int _selectedFilter = 0;
+  int _unreadCount = 0;
 
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'title': 'Perumahan Baru Ditambahkan',
-      'description':
-          'Perumahan Contoh Asri berhasil ditambahkan ke sistem.',
-      'date': 'Hari ini, 10.30',
-      'icon': Icons.apartment,
-      'isRead': false,
-    },
-    {
-      'title': 'Blok Baru Ditambahkan',
-      'description':
-          'Blok A berhasil ditambahkan pada Perumahan Contoh Asri.',
-      'date': 'Kemarin, 14.20',
-      'icon': Icons.grid_view,
-      'isRead': false,
-    },
-    {
-      'title': 'Unit Rumah Baru Ditambahkan',
-      'description':
-          'Unit A-01 berhasil ditambahkan dengan luas tanah 100 m².',
-      'date': '12 November 2026, 09.15',
-      'icon': Icons.house_outlined,
-      'isRead': true,
-    },
-    {
-      'title': 'Data Perumahan Diperbarui',
-      'description':
-          'Informasi Perumahan Contoh Asri berhasil diperbarui.',
-      'date': '11 November 2026, 15.00',
-      'icon': Icons.edit_outlined,
-      'isRead': true,
-    },
-  ];
+  bool _isLoading = true;
+  bool _isMarkingAllRead = false;
 
-  int get _unreadCount =>
-      _notifications.where((item) => item['isRead'] == false).length;
+  String? _errorMessage;
 
-  List<Map<String, dynamic>> get _filteredNotifications {
-    if (_selectedFilter == 1) {
-      return _notifications
-          .where((item) => item['isRead'] == false)
-          .toList();
+  List<NotificationModel> _notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  // Mengambil notifikasi dari Laravel API.
+  Future<void> _loadNotifications() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await NotificationService.getNotifications();
+
+      if (!mounted) return;
+
+      setState(() {
+        _notifications =
+            response['notifications'] as List<NotificationModel>;
+
+        _unreadCount = response['unread_count'] as int;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage =
+            e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
     }
+  }
+
+  // Filter notifikasi.
+  List<NotificationModel> get _filteredNotifications {
+    if (_selectedFilter == 1) {
+      return _notifications.where((item) => !item.isRead).toList();
+    }
+
     return _notifications;
   }
 
-  void _markAllAsRead() {
-    setState(() {
-      for (final item in _notifications) {
-        item['isRead'] = true;
-      }
-    });
+  // Menandai satu notifikasi sudah dibaca.
+  Future<void> _markAsRead(NotificationModel notification) async {
+    if (notification.isRead) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Semua notifikasi sudah dibaca.'),
-      ),
-    );
+    try {
+      await NotificationService.markAsRead(notification.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        final index = _notifications.indexWhere(
+          (item) => item.id == notification.id,
+        );
+
+        if (index != -1) {
+          final old = _notifications[index];
+
+          _notifications[index] = NotificationModel(
+            id: old.id,
+            judul: old.judul,
+            pesan: old.pesan,
+            tipe: old.tipe,
+            referenceId: old.referenceId,
+            isRead: true,
+            createdAt: old.createdAt,
+          );
+        }
+
+        _unreadCount =
+            _notifications.where((item) => !item.isRead).length;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Gagal memperbarui notifikasi: '
+        '${e.toString().replaceFirst('Exception: ', '')}',
+      );
+    }
   }
 
-  void _markAsRead(Map<String, dynamic> notification) {
-    if (notification['isRead'] == false) {
-      setState(() {
-        notification['isRead'] = true;
-      });
+  // Mengambil detail dan menampilkan pop-up.
+  Future<void> _openNotificationDetail(NotificationModel item) async {
+    await _markAsRead(item);
+
+    if (!mounted) return;
+
+    try {
+      final detail =
+          await NotificationService.getNotificationDetail(item.id);
+
+      if (!mounted) return;
+
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          return DetailNotifikasiDialog(
+            detail: detail,
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Gagal mengambil detail notifikasi: '
+        '${e.toString().replaceFirst('Exception: ', '')}',
+      );
     }
+  }
+
+  // Menandai semua notifikasi sudah dibaca.
+  Future<void> _markAllAsRead() async {
+    if (_unreadCount == 0 || _isMarkingAllRead) return;
+
+    setState(() {
+      _isMarkingAllRead = true;
+    });
+
+    try {
+      await NotificationService.markAllAsRead();
+
+      if (!mounted) return;
+
+      setState(() {
+        _notifications = _notifications.map((item) {
+          return NotificationModel(
+            id: item.id,
+            judul: item.judul,
+            pesan: item.pesan,
+            tipe: item.tipe,
+            referenceId: item.referenceId,
+            isRead: true,
+            createdAt: item.createdAt,
+          );
+        }).toList();
+
+        _unreadCount = 0;
+        _isMarkingAllRead = false;
+      });
+
+      _showMessage('Semua notifikasi sudah dibaca.');
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isMarkingAllRead = false;
+      });
+
+      _showMessage(
+        'Gagal memperbarui notifikasi: '
+        '${e.toString().replaceFirst('Exception: ', '')}',
+      );
+    }
+  }
+
+  // Menentukan ikon berdasarkan tipe notifikasi.
+  IconData _getNotificationIcon(String? type) {
+    switch (type) {
+      case 'PENGAJUAN_BARU':
+        return Icons.assignment_outlined;
+      case 'DISETUJUI':
+        return Icons.check_circle_outline;
+      case 'DITOLAK':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.notifications_outlined;
+    }
+  }
+
+  // Format tanggal notifikasi.
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      return '-';
+    }
+
+    final date = DateTime.tryParse(dateString)?.toLocal();
+
+    if (date == null) return dateString;
+
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+
+    final day = date.day.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '$day ${months[date.month - 1]} ${date.year}, $hour.$minute';
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -108,7 +265,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Informasi aktivitas pengelolaan SIRUMA.',
+                    'Informasi pengajuan dan status penilaian SIRUMA.',
                     style: TextStyle(
                       fontSize: 13,
                       color: secondaryText,
@@ -127,7 +284,9 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                         ),
                       ),
                       TextButton(
-                        onPressed: _unreadCount == 0
+                        onPressed: _unreadCount == 0 ||
+                                _isLoading ||
+                                _isMarkingAllRead
                             ? null
                             : _markAllAsRead,
                         child: const Text(
@@ -151,26 +310,96 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                 ],
               ),
             ),
-            Expanded(
-              child: _filteredNotifications.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(22, 4, 22, 20),
-                      itemCount: _filteredNotifications.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = _filteredNotifications[index];
-                        return _buildNotificationCard(item);
-                      },
-                    ),
-            ),
+            Expanded(child: _buildContent()),
           ],
         ),
       ),
     );
   }
 
+  // Konten utama halaman.
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: primaryGreen,
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.wifi_off_outlined,
+                size: 48,
+                color: secondaryText,
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Gagal Memuat Notifikasi',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: darkGreen,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: secondaryText,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadNotifications,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryGreen,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: primaryGreen,
+      onRefresh: _loadNotifications,
+      child: _filteredNotifications.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: 350,
+                  child: _buildEmptyState(),
+                ),
+              ],
+            )
+          : ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(22, 4, 22, 20),
+              itemCount: _filteredNotifications.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = _filteredNotifications[index];
+                return _buildNotificationCard(item);
+              },
+            ),
+    );
+  }
+
+  // Filter chip.
   Widget _buildFilterChip(String label, int index) {
     final isSelected = _selectedFilter == index;
 
@@ -190,7 +419,9 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           color: isSelected ? primaryGreen : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? primaryGreen : const Color(0xFFE1EBE5),
+            color: isSelected
+                ? primaryGreen
+                : const Color(0xFFE1EBE5),
           ),
         ),
         child: Text(
@@ -205,11 +436,19 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     );
   }
 
-  Widget _buildNotificationCard(Map<String, dynamic> item) {
-    final bool isRead = item['isRead'];
+  // Kartu notifikasi.
+  Widget _buildNotificationCard(NotificationModel item) {
+    final bool isRead = item.isRead;
+
+    final title = item.judul;
+    final description = item.pesan;
+    final type = item.tipe;
+    final date = _formatDate(
+      item.createdAt?.toIso8601String(),
+    );
 
     return InkWell(
-      onTap: () => _markAsRead(item),
+      onTap: () => _openNotificationDetail(item),
       borderRadius: BorderRadius.circular(15),
       child: Container(
         padding: const EdgeInsets.all(15),
@@ -233,7 +472,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                item['icon'],
+                _getNotificationIcon(type),
                 color: primaryGreen,
                 size: 23,
               ),
@@ -247,7 +486,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                     children: [
                       Expanded(
                         child: Text(
-                          item['title'],
+                          title,
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -268,7 +507,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    item['description'],
+                    description,
                     style: const TextStyle(
                       fontSize: 12,
                       color: secondaryText,
@@ -277,7 +516,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
                   ),
                   const SizedBox(height: 9),
                   Text(
-                    item['date'],
+                    date,
                     style: const TextStyle(
                       fontSize: 10,
                       color: secondaryText,
@@ -292,6 +531,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     );
   }
 
+  // Tampilan ketika tidak ada notifikasi.
   Widget _buildEmptyState() {
     return Center(
       child: Column(

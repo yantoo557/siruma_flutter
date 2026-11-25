@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -63,6 +65,26 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  // Mengirim request PATCH untuk memperbarui sebagian data
+  static Future<Map<String, dynamic>> patch(
+    String endpoint, [
+    Map<String, dynamic>? body,
+  ]) async {
+    final token = await _storage.read(key: 'auth_token');
+
+    final response = await http.patch(
+      Uri.parse('${ApiConfig.baseUrl}/$endpoint'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+      body: body != null ? jsonEncode(body) : null,
+    );
+
+    return _handleResponse(response);
+  }
+
   // Mengirim request DELETE untuk menghapus data
   static Future<Map<String, dynamic>> delete(String endpoint) async {
     final token = await _storage.read(key: 'auth_token');
@@ -76,6 +98,66 @@ class ApiService {
     );
 
     return _handleResponse(response);
+  }
+
+  // Mengunggah foto profil menggunakan multipart/form-data
+
+  // Mengunggah foto profil menggunakan multipart/form-data
+  static Future<Map<String, dynamic>> uploadFile(
+    String endpoint,
+    String fieldName,
+    File file,
+  ) async {
+    final token = await _storage.read(key: 'auth_token');
+
+    final extension = file.path.split('.').last.toLowerCase();
+
+    final mimeType = switch (extension) {
+      'jpg' || 'jpeg' => MediaType('image', 'jpeg'),
+      'png' => MediaType('image', 'png'),
+      'webp' => MediaType('image', 'webp'),
+      _ => throw Exception('Format foto tidak didukung.'),
+    };
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiConfig.baseUrl}/$endpoint'),
+    );
+
+    request.headers.addAll({
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        fieldName,
+        file.path,
+        contentType: mimeType,
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    return _handleResponse(response);
+  }
+
+  // Logout dari akun
+
+  // Logout dari akun
+  static Future<Map<String, dynamic>> logout() async {
+    try {
+      // Mencoba mengakhiri sesi pada server Laravel.
+      return await post('logout', {});
+    } catch (e) {
+      // Jika server tidak dapat dihubungi,
+      // logout lokal tetap dilanjutkan.
+      return {'message': 'Sesi lokal berhasil diakhiri.'};
+    } finally {
+      // Token lokal selalu dihapus, baik API berhasil maupun gagal.
+      await removeToken();
+    }
   }
 
   // Menyimpan token login

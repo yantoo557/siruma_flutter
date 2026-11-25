@@ -17,6 +17,13 @@ class SuperAdminDashboardPage extends StatefulWidget {
 
 class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
   int _selectedIndex = 0;
+  String _namaPengguna = 'Super Admin';
+
+  @override
+  void initState() {
+    super.initState();
+    _namaPengguna = widget.namaPengguna;
+  }
 
   static const Color primaryGreen = Color(0xFF006B50);
   static const Color darkGreen = Color(0xFF173D32);
@@ -33,7 +40,13 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
           children: [
             _buildDashboard(),
             const NotifikasiPage(),
-            const ProfilePage(),
+            ProfilePage(
+              onNamaBerubah: (namaBaru) {
+                setState(() {
+                  _namaPengguna = namaBaru;
+                });
+              },
+            ),
           ],
         ),
       ),
@@ -52,7 +65,7 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
           const SizedBox(height: 30),
 
           Text(
-            'Selamat Datang, ${widget.namaPengguna}',
+            'Selamat Datang, $_namaPengguna',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -227,35 +240,6 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
     );
   }
 
-  Widget _buildPlaceholder(IconData icon, String title, String description) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: primaryGreen, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: darkGreen,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: secondaryText),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBottomNavigation() {
     return Container(
       decoration: const BoxDecoration(
@@ -292,12 +276,6 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Halaman $feature akan segera dibuat.')),
     );
   }
 }
