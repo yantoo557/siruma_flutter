@@ -1,11 +1,17 @@
+
 import 'package:flutter/material.dart';
 
+import '../../../core/services/approval_service.dart';
+import '../../../models/approval_submission_model.dart';
 import 'detail_pemeriksaan_page.dart';
 
 class PemeriksaanPage extends StatefulWidget {
   final String initialFilter;
 
-  const PemeriksaanPage({super.key, this.initialFilter = 'Semua'});
+  const PemeriksaanPage({
+    super.key,
+    this.initialFilter = 'Semua',
+  });
 
   @override
   State<PemeriksaanPage> createState() => _PemeriksaanPageState();
@@ -17,51 +23,87 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
 
   late String filterAktif;
 
+  List<ApprovalSubmissionModel> pengajuan = [];
+
+  bool isLoading = true;
+  String? errorMessage;
+
   @override
   void initState() {
     super.initState();
     filterAktif = widget.initialFilter;
+    _ambilPengajuan();
   }
 
-  final List<Map<String, dynamic>> pengajuan = [
-    {
-      'perumahan': 'Perumahan H',
-      'blok': 'A',
-      'unit': 'A1',
-      'pengaju': 'Ahmad Fauzi',
-      'tanggal': '13 November 2026',
-      'status': 'Menunggu Pemeriksaan',
-    },
-    {
-      'perumahan': 'Perumahan B',
-      'blok': 'B',
-      'unit': 'B2',
-      'pengaju': 'Muhammad Rizal',
-      'tanggal': '12 November 2026',
-      'status': 'Menunggu Pemeriksaan',
-    },
-    {
-      'perumahan': 'Perumahan C',
-      'blok': 'A',
-      'unit': 'A3',
-      'pengaju': 'Andi Saputra',
-      'tanggal': '11 November 2026',
-      'status': 'Perlu Revisi',
-    },
-    {
-      'perumahan': 'Perumahan D',
-      'blok': 'C',
-      'unit': 'C1',
-      'pengaju': 'Siti Rahma',
-      'tanggal': '10 November 2026',
-      'status': 'Menunggu Pemeriksaan',
-    },
-  ];
+  Future<void> _ambilPengajuan() async {
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
 
-  List<Map<String, dynamic>> get pengajuanTerfilter {
+    try {
+      final data = await ApprovalService.getApprovals();
+
+      if (!mounted) return;
+
+      setState(() {
+        pengajuan = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        errorMessage = e.toString().replaceFirst('Exception: ', '');
+        isLoading = false;
+      });
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toUpperCase()) {
+      case 'MENUNGGU':
+        return 'Menunggu Pemeriksaan';
+      case 'DISETUJUI':
+        return 'Disetujui';
+      case 'DITOLAK':
+        return 'Ditolak';
+      case 'PERLU_REVISI':
+        return 'Perlu Revisi';
+      default:
+        return status;
+    }
+  }
+
+  List<ApprovalSubmissionModel> get pengajuanTerfilter {
     if (filterAktif == 'Semua') return pengajuan;
 
-    return pengajuan.where((item) => item['status'] == filterAktif).toList();
+    return pengajuan
+        .where((item) => _statusLabel(item.status) == filterAktif)
+        .toList();
+  }
+
+  String _formatTanggal(DateTime? tanggal) {
+    if (tanggal == null) return '-';
+
+    const bulan = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+
+    return '${tanggal.day} ${bulan[tanggal.month - 1]} ${tanggal.year}';
   }
 
   Color warnaStatus(String status) {
@@ -104,9 +146,22 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
         elevation: 0,
         title: const Text(
           'Pemeriksaan',
-          style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: darkGreen,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            onPressed: isLoading ? null : _ambilPengajuan,
+            tooltip: 'Muat ulang',
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: darkGreen,
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -114,19 +169,98 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
             _buildHeader(),
             _buildFilter(),
             Expanded(
-              child: pengajuanTerfilter.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                      itemCount: pengajuanTerfilter.length,
-                      itemBuilder: (context, index) {
-                        final item = pengajuanTerfilter[index];
-                        return _buildPengajuanCard(item);
-                      },
-                    ),
+              child: _buildContent(),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: primaryGreen,
+        ),
+      );
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.wifi_off_rounded,
+                size: 55,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Gagal Memuat Pengajuan',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: darkGreen,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: _ambilPengajuan,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Coba Lagi'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryGreen,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final dataTerfilter = pengajuanTerfilter;
+
+    if (dataTerfilter.isEmpty) {
+      return RefreshIndicator(
+        color: primaryGreen,
+        onRefresh: _ambilPengajuan,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: 350,
+              child: _buildEmptyState(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: primaryGreen,
+      onRefresh: _ambilPengajuan,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        itemCount: dataTerfilter.length,
+        itemBuilder: (context, index) {
+          final item = dataTerfilter[index];
+          return _buildPengajuanCard(item);
+        },
       ),
     );
   }
@@ -149,7 +283,10 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
           const SizedBox(height: 6),
           Text(
             'Periksa dan tinjau pengajuan monitoring rumah.',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
           ),
         ],
       ),
@@ -168,7 +305,10 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
     return SizedBox(
       height: 52,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 4,
+        ),
         scrollDirection: Axis.horizontal,
         itemCount: filters.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -190,7 +330,9 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
               side: BorderSide(
-                color: selected ? primaryGreen : Colors.grey.shade200,
+                color: selected
+                    ? primaryGreen
+                    : Colors.grey.shade200,
               ),
             ),
             onSelected: (_) {
@@ -202,8 +344,8 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
     );
   }
 
-  Widget _buildPengajuanCard(Map<String, dynamic> item) {
-    final status = item['status'] as String;
+  Widget _buildPengajuanCard(ApprovalSubmissionModel item) {
+    final status = _statusLabel(item.status);
     final warna = warnaStatus(status);
 
     return Card(
@@ -222,16 +364,23 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
             MaterialPageRoute(
               builder: (context) => DetailPemeriksaanPage(
                 data: {
-                  'perumahan': item['perumahan'].toString(),
-                  'blok': item['blok'].toString(),
-                  'unit': item['unit'].toString(),
-                  'pengaju': item['pengaju'].toString(),
-                  'tanggal': item['tanggal'].toString(),
-                  'status': item['status'].toString(),
+                  'approval_id': item.id.toString(),
+                  'monitoring_id': item.monitoringId.toString(),
+                  'perumahan': item.perumahan,
+                  'blok': item.blok,
+                  'unit': item.unit,
+                  'blok_unit': 'Blok ${item.blok} · Unit ${item.unit}',
+                  'pengaju': item.pengaju,
+                  'tanggal': _formatTanggal(item.tanggalMonitoring),
+                  'status': status,
                 },
               ),
             ),
-          );
+          ).then((_) {
+            if (mounted) {
+              _ambilPengajuan();
+            }
+          });
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -256,7 +405,7 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      item['perumahan'],
+                      item.perumahan,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -293,9 +442,14 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
                     color: Colors.grey.shade600,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    'Blok ${item['blok']} · Unit ${item['unit']}',
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  Expanded(
+                    child: Text(
+                      'Blok ${item.blok} · Unit ${item.unit}',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -308,9 +462,14 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
                     color: Colors.grey.shade600,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    'Pengaju: ${item['pengaju']}',
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  Expanded(
+                    child: Text(
+                      'Pengaju: ${item.pengaju}',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -323,11 +482,15 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
                     color: Colors.grey.shade600,
                   ),
                   const SizedBox(width: 7),
-                  Text(
-                    item['tanggal'],
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  Expanded(
+                    child: Text(
+                      _formatTanggal(item.tanggalMonitoring),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                  const Spacer(),
                   const Text(
                     'Lihat Detail',
                     style: TextStyle(
@@ -358,7 +521,11 @@ class _PemeriksaanPageState extends State<PemeriksaanPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.inbox_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Tidak Ada Pengajuan',

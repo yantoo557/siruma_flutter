@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/perumahan_service.dart';
+import '../../../models/perumahan_model.dart';
 import 'select_unit_page.dart';
 
 class SelectPerumahanPage extends StatefulWidget {
@@ -17,21 +19,60 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _perumahanList = [
-    {
-      'id': 1,
-      'nama': 'Perumahan Contoh Asri',
-      'alamat': 'Jalan Contoh No. 10, Makassar (alamat demo)',
-    },
-  ];
-
+  List<PerumahanModel> _perumahanList = [];
   int? _selectedPerumahanId;
   String _searchQuery = '';
 
-  List<Map<String, dynamic>> get _filteredPerumahan {
-    return _perumahanList.where((perumahan) {
-      final nama = perumahan['nama'].toString().toLowerCase();
-      return nama.contains(_searchQuery.toLowerCase());
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPerumahan();
+  }
+
+  Future<void> _loadPerumahan() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final result = await PerumahanService.getPerumahan();
+
+      if (!mounted) return;
+
+      setState(() {
+        _perumahanList = result;
+        _isLoading = false;
+
+        if (_selectedPerumahanId != null &&
+            !_perumahanList.any((item) => item.id == _selectedPerumahanId)) {
+          _selectedPerumahanId = null;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  List<PerumahanModel> get _filteredPerumahan {
+    final query = _searchQuery.trim().toLowerCase();
+
+    if (query.isEmpty) return _perumahanList;
+
+    return _perumahanList.where((item) {
+      return item.namaPerumahan.toLowerCase().contains(query) ||
+          item.lokasi.toLowerCase().contains(query) ||
+          item.developer.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -58,23 +99,16 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
                     'Pilih perumahan yang akan dimonitor.',
                     style: TextStyle(fontSize: 14, color: secondaryText),
                   ),
-
                   const SizedBox(height: 10),
-
-                  _buildDemoLabel(),
-
+                  _buildDataLabel(),
                   const SizedBox(height: 19),
-
                   _buildSearchField(),
-
                   const SizedBox(height: 21),
-
                   _buildPerumahanList(),
                 ],
               ),
             ),
           ),
-
           _buildBottomAction(),
         ],
       ),
@@ -107,7 +141,7 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
     );
   }
 
-  Widget _buildDemoLabel() {
+  Widget _buildDataLabel() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -115,7 +149,7 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Text(
-        'Data demo fiktif',
+        'Data dari server',
         style: TextStyle(
           color: primaryGreen,
           fontSize: 10,
@@ -152,6 +186,70 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
   }
 
   Widget _buildPerumahanList() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 55),
+        child: Center(child: CircularProgressIndicator(color: primaryGreen)),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 35),
+        child: Center(
+          child: Column(
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 38,
+                color: secondaryText,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Gagal mengambil data perumahan.',
+                style: TextStyle(
+                  color: darkGreen,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: secondaryText, fontSize: 11),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _loadPerumahan,
+                icon: const Icon(Icons.refresh, size: 17),
+                label: const Text('Coba Lagi'),
+                style: OutlinedButton.styleFrom(foregroundColor: primaryGreen),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_perumahanList.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 45),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.home_work_outlined, size: 38, color: secondaryText),
+              SizedBox(height: 12),
+              Text(
+                'Belum ada data perumahan.',
+                style: TextStyle(color: secondaryText, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final filteredList = _filteredPerumahan;
 
     if (filteredList.isEmpty) {
@@ -168,15 +266,14 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
 
     return Column(
       children: filteredList.map((perumahan) {
-        final id = perumahan['id'] as int;
-        final isSelected = _selectedPerumahanId == id;
+        final isSelected = _selectedPerumahanId == perumahan.id;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: InkWell(
             onTap: () {
               setState(() {
-                _selectedPerumahanId = id;
+                _selectedPerumahanId = perumahan.id;
               });
             },
             borderRadius: BorderRadius.circular(15),
@@ -205,15 +302,13 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
                       size: 21,
                     ),
                   ),
-
                   const SizedBox(width: 13),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          perumahan['nama'].toString(),
+                          perumahan.namaPerumahan,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -224,7 +319,9 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          perumahan['alamat'].toString(),
+                          perumahan.lokasi.isNotEmpty
+                              ? perumahan.lokasi
+                              : perumahan.developer,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -235,9 +332,7 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
                       ],
                     ),
                   ),
-
                   const SizedBox(width: 8),
-
                   Icon(
                     isSelected
                         ? Icons.radio_button_checked
@@ -255,7 +350,8 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
   }
 
   Widget _buildBottomAction() {
-    final isEnabled = _selectedPerumahanId != null;
+    final isEnabled =
+        _selectedPerumahanId != null && !_isLoading && _errorMessage == null;
 
     return Container(
       width: double.infinity,
@@ -290,15 +386,16 @@ class _SelectPerumahanPageState extends State<SelectPerumahanPage> {
 
   void _continueToNextPage() {
     final selectedPerumahan = _perumahanList.firstWhere(
-      (item) => item['id'] == _selectedPerumahanId,
+      (item) => item.id == _selectedPerumahanId,
     );
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SelectUnitPage(
-          namaPerumahan: selectedPerumahan['nama'].toString(),
-          namaDeveloper: 'PT Contoh Developer Nusantara',
+          perumahanId: selectedPerumahan.id,
+          namaPerumahan: selectedPerumahan.namaPerumahan,
+          namaDeveloper: selectedPerumahan.developer,
         ),
       ),
     );

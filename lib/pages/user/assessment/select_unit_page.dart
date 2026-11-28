@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/blok_service.dart';
+import '../../../core/services/monitoring_service.dart';
+import '../../../models/blok_model.dart';
+import '../../../models/unit_model.dart';
 import 'land_data_page.dart';
-
-import 'package:flutter/material.dart';
+import '../draft/draft_list_page.dart';
 
 class SelectUnitPage extends StatefulWidget {
+  final int perumahanId;
   final String namaPerumahan;
   final String namaDeveloper;
 
   const SelectUnitPage({
     super.key,
+    required this.perumahanId,
     required this.namaPerumahan,
     required this.namaDeveloper,
   });
@@ -26,25 +31,74 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  String? _selectedUnit;
+  List<BlokModel> _blokList = [];
+  final Map<int, List<UnitModel>> _unitsByBlok = {};
 
-  final List<Map<String, String>> _unitList = [
-    {'nomor': 'A-01', 'blok': 'Blok A', 'luasTanah': '98'},
-    {'nomor': 'A-02', 'blok': 'Blok A', 'luasTanah': '97'},
-    {'nomor': 'B-01', 'blok': 'Blok B', 'luasTanah': '100'},
-  ];
+  int? _selectedUnitId;
+  bool _isLoading = true;
+  bool _isContinuing = false;
+  String? _errorMessage;
+  String _searchQuery = '';
 
-  List<Map<String, String>> get _filteredUnits {
-    final query = _searchController.text.toLowerCase();
+  @override
+  void initState() {
+    super.initState();
+    _loadBlokDanUnit();
+  }
 
-    return _unitList.where((unit) {
-      return unit['nomor']!.toLowerCase().contains(query) ||
-          unit['blok']!.toLowerCase().contains(query);
+  Future<void> _loadBlokDanUnit() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final blok = await BlokService.getBlok(widget.perumahanId);
+
+      final Map<int, List<UnitModel>> unitMap = {};
+
+      for (final item in blok) {
+        final units = await BlokService.getUnit(item.id);
+
+        // Hanya tampilkan unit yang aktif.
+        unitMap[item.id] = units
+            .where((unit) => unit.status.toLowerCase() == 'aktif')
+            .toList();
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _blokList = blok;
+        _unitsByBlok
+          ..clear()
+          ..addAll(unitMap);
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  List<UnitModel> _filteredUnitsFor(BlokModel blok) {
+    final units = _unitsByBlok[blok.id] ?? [];
+    final query = _searchQuery.trim().toLowerCase();
+
+    if (query.isEmpty) return units;
+
+    return units.where((unit) {
+      return unit.nomorUnit.toLowerCase().contains(query) ||
+          blok.namaBlok.toLowerCase().contains(query);
     }).toList();
   }
 
-  List<String> get _blokList {
-    return _filteredUnits.map((unit) => unit['blok']!).toSet().toList();
+  bool get _hasUnits {
+    return _unitsByBlok.values.any((units) => units.isNotEmpty);
   }
 
   @override
@@ -61,7 +115,6 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
         child: Column(
           children: [
             _buildHeader(),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(22, 22, 22, 25),
@@ -72,47 +125,18 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
                       'Pilih unit rumah yang akan dinilai.',
                       style: TextStyle(fontSize: 14, color: Color(0xFF52645D)),
                     ),
-
                     const SizedBox(height: 18),
-
                     _buildInformationCard(),
-
                     const SizedBox(height: 10),
-
-                    _buildDemoBadge(),
-
+                    _buildServerBadge(),
                     const SizedBox(height: 14),
-
                     _buildSearchField(),
-
                     const SizedBox(height: 20),
-
-                    ..._blokList.map((blok) {
-                      final units = _filteredUnits
-                          .where((unit) => unit['blok'] == blok)
-                          .toList();
-
-                      return _buildBlokSection(blok, units);
-                    }),
-
-                    if (_filteredUnits.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 35),
-                        child: Center(
-                          child: Text(
-                            'Unit rumah tidak ditemukan.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: secondaryText,
-                            ),
-                          ),
-                        ),
-                      ),
+                    _buildContent(),
                   ],
                 ),
               ),
             ),
-
             _buildBottomButton(),
           ],
         ),
@@ -142,7 +166,6 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
               ),
             ),
           ),
-
           const Text(
             'Pilih Rumah',
             style: TextStyle(
@@ -172,9 +195,7 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
             'Nama Perumahan',
             style: TextStyle(fontSize: 12, color: secondaryText),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             widget.namaPerumahan,
             style: const TextStyle(
@@ -183,19 +204,15 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
               color: darkGreen,
             ),
           ),
-
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 11),
             child: Divider(height: 1, color: Color(0xFFE8EFEB)),
           ),
-
           const Text(
             'Developer Perumahan',
             style: TextStyle(fontSize: 12, color: secondaryText),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             widget.namaDeveloper,
             style: const TextStyle(
@@ -209,7 +226,7 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
     );
   }
 
-  Widget _buildDemoBadge() {
+  Widget _buildServerBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -217,7 +234,7 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Text(
-        'Data demo fiktif',
+        'Data dari server',
         style: TextStyle(
           color: primaryGreen,
           fontSize: 10,
@@ -230,12 +247,12 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
-      onChanged: (_) => setState(() {
-        if (_selectedUnit != null &&
-            !_filteredUnits.any((unit) => unit['nomor'] == _selectedUnit)) {
-          _selectedUnit = null;
-        }
-      }),
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+          _selectedUnitId = null;
+        });
+      },
       decoration: InputDecoration(
         hintText: 'Cari nomor rumah atau blok',
         hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF89958F)),
@@ -245,7 +262,8 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
-                    _selectedUnit = null;
+                    _searchQuery = '';
+                    _selectedUnitId = null;
                   });
                 },
                 icon: const Icon(Icons.close),
@@ -270,27 +288,107 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
     );
   }
 
-  Widget _buildBlokSection(String namaBlok, List<Map<String, String>> units) {
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 55),
+        child: Center(child: CircularProgressIndicator(color: primaryGreen)),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 35),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                color: secondaryText,
+                size: 38,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Gagal mengambil data blok dan unit.',
+                style: TextStyle(
+                  color: darkGreen,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: secondaryText, fontSize: 11),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _loadBlokDanUnit,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Coba Lagi'),
+                style: OutlinedButton.styleFrom(foregroundColor: primaryGreen),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!_hasUnits) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 35),
+        child: Center(
+          child: Text(
+            'Belum ada unit aktif pada perumahan ini.',
+            style: TextStyle(fontSize: 13, color: secondaryText),
+          ),
+        ),
+      );
+    }
+
+    final visibleBlok = _blokList
+        .where((blok) => _filteredUnitsFor(blok).isNotEmpty)
+        .toList();
+
+    if (visibleBlok.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 35),
+        child: Center(
+          child: Text(
+            'Unit rumah tidak ditemukan.',
+            style: TextStyle(fontSize: 13, color: secondaryText),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: visibleBlok.map((blok) {
+        return _buildBlokSection(blok, _filteredUnitsFor(blok));
+      }).toList(),
+    );
+  }
+
+  Widget _buildBlokSection(BlokModel blok, List<UnitModel> units) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 19),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            namaBlok,
+            blok.namaBlok,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
               color: darkGreen,
             ),
           ),
-
           const SizedBox(height: 10),
-
           ...units.map(
             (unit) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: _buildUnitCard(unit),
+              child: _buildUnitCard(blok, unit),
             ),
           ),
         ],
@@ -298,14 +396,13 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
     );
   }
 
-  Widget _buildUnitCard(Map<String, String> unit) {
-    final nomor = unit['nomor']!;
-    final isSelected = _selectedUnit == nomor;
+  Widget _buildUnitCard(BlokModel blok, UnitModel unit) {
+    final isSelected = _selectedUnitId == unit.id;
 
     return InkWell(
       onTap: () {
         setState(() {
-          _selectedUnit = nomor;
+          _selectedUnitId = unit.id;
         });
       },
       borderRadius: BorderRadius.circular(14),
@@ -335,41 +432,33 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
                 size: 22,
               ),
             ),
-
             const SizedBox(width: 13),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Nomor rumah $nomor',
+                    'Nomor rumah ${unit.nomorUnit}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: darkGreen,
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
-                    unit['blok']!,
+                    blok.namaBlok,
                     style: const TextStyle(fontSize: 11, color: secondaryText),
                   ),
-
                   const SizedBox(height: 3),
-
                   Text(
-                    'Luas tanah ${unit['luasTanah']} m²',
+                    'Luas tanah ${unit.luasTanah} m²',
                     style: const TextStyle(fontSize: 11, color: secondaryText),
                   ),
                 ],
               ),
             ),
-
             const SizedBox(width: 8),
-
             Icon(
               isSelected
                   ? Icons.radio_button_checked
@@ -395,25 +484,9 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
         width: double.infinity,
         height: 47,
         child: ElevatedButton(
-          onPressed: _selectedUnit == null
+          onPressed: _selectedUnitId == null || _isContinuing
               ? null
-              : () {
-                  final unit = _unitList.firstWhere(
-                    (item) => item['nomor'] == _selectedUnit,
-                  );
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => LandDataPage(
-                        namaPerumahan: widget.namaPerumahan,
-                        namaBlok: unit['blok']!,
-                        nomorRumah: unit['nomor']!,
-                        luasTanah: unit['luasTanah']!,
-                      ),
-                    ),
-                  );
-                },
+              : _continueToLandData,
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryGreen,
             disabledBackgroundColor: const Color(0xFFC9D6D1),
@@ -432,4 +505,94 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
       ),
     );
   }
+
+  Future<void> _continueToLandData() async {
+    if (_isContinuing || _selectedUnitId == null) return;
+
+    BlokModel? selectedBlok;
+    UnitModel? selectedUnit;
+
+    for (final blok in _blokList) {
+      final units = _unitsByBlok[blok.id] ?? [];
+      for (final unit in units) {
+        if (unit.id == _selectedUnitId) {
+          selectedBlok = blok;
+          selectedUnit = unit;
+          break;
+        }
+      }
+      if (selectedUnit != null) break;
+    }
+
+    if (selectedBlok == null || selectedUnit == null) return;
+
+    final blokTerpilih = selectedBlok;
+    final unitTerpilih = selectedUnit;
+
+    setState(() => _isContinuing = true);
+
+    try {
+      final draft = await MonitoringService.getDraftForUnit(unitTerpilih.id);
+
+      if (!mounted) return;
+
+      if (draft != null) {
+        final action = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Draft sudah tersedia'),
+            content: Text(
+              'Rumah ${unitTerpilih.nomorUnit} sudah memiliki Draft monitoring. '
+              'Silakan buka Draft Saya untuk melanjutkan Draft tersebut atau '
+              'menghapusnya jika belum lengkap.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Buka Draft Saya'),
+              ),
+            ],
+          ),
+        );
+
+        if (action == true && mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const DraftListPage()),
+          );
+        }
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LandDataPage(
+            unitId: unitTerpilih.id,
+            namaPerumahan: widget.namaPerumahan,
+            namaBlok: blokTerpilih.namaBlok,
+            nomorRumah: unitTerpilih.nomorUnit,
+            luasTanah: unitTerpilih.luasTanah.toString(),
+            nilaiBangunanPerM2: unitTerpilih.nilaiBangunanPerM2,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memeriksa Draft unit: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isContinuing = false);
+    }
+  }
+
 }

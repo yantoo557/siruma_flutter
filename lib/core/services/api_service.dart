@@ -10,7 +10,7 @@ import '../config/api_config.dart';
 class ApiService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  // Mengirim request GET
+  // GET
   static Future<Map<String, dynamic>> get(String endpoint) async {
     final token = await _storage.read(key: 'auth_token');
 
@@ -25,7 +25,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // Mengirim request POST
+  // POST JSON
   static Future<Map<String, dynamic>> post(
     String endpoint,
     Map<String, dynamic> body,
@@ -45,7 +45,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // Mengirim request PUT untuk memperbarui data
+  // PUT JSON
   static Future<Map<String, dynamic>> put(
     String endpoint,
     Map<String, dynamic> body,
@@ -65,7 +65,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // Mengirim request PATCH untuk memperbarui sebagian data
+  // PATCH JSON
   static Future<Map<String, dynamic>> patch(
     String endpoint, [
     Map<String, dynamic>? body,
@@ -85,7 +85,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // Mengirim request DELETE untuk menghapus data
+  // DELETE
   static Future<Map<String, dynamic>> delete(String endpoint) async {
     final token = await _storage.read(key: 'auth_token');
 
@@ -100,14 +100,14 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // Mengunggah foto profil menggunakan multipart/form-data
-
-  // Mengunggah foto profil menggunakan multipart/form-data
+  // MULTIPART UPLOAD
+  // fields digunakan untuk mengirim data tambahan bersama file.
   static Future<Map<String, dynamic>> uploadFile(
     String endpoint,
     String fieldName,
-    File file,
-  ) async {
+    File file, {
+    Map<String, String>? fields,
+  }) async {
     final token = await _storage.read(key: 'auth_token');
 
     final extension = file.path.split('.').last.toLowerCase();
@@ -129,6 +129,10 @@ class ApiService {
       if (token != null) 'Authorization': 'Bearer $token',
     });
 
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+
     request.files.add(
       await http.MultipartFile.fromPath(
         fieldName,
@@ -143,39 +147,31 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // Logout dari akun
-
-  // Logout dari akun
+  // LOGOUT
   static Future<Map<String, dynamic>> logout() async {
     try {
-      // Mencoba mengakhiri sesi pada server Laravel.
       return await post('logout', {});
     } catch (e) {
-      // Jika server tidak dapat dihubungi,
-      // logout lokal tetap dilanjutkan.
       return {'message': 'Sesi lokal berhasil diakhiri.'};
     } finally {
-      // Token lokal selalu dihapus, baik API berhasil maupun gagal.
       await removeToken();
     }
   }
 
-  // Menyimpan token login
+  // TOKEN
   static Future<void> saveToken(String token) async {
     await _storage.write(key: 'auth_token', value: token);
   }
 
-  // Mengambil token
   static Future<String?> getToken() async {
     return await _storage.read(key: 'auth_token');
   }
 
-  // Menghapus token
   static Future<void> removeToken() async {
     await _storage.delete(key: 'auth_token');
   }
 
-  // Menangani response Laravel
+  // RESPONSE HANDLER
   static Map<String, dynamic> _handleResponse(http.Response response) {
     final dynamic decoded = jsonDecode(response.body);
 
@@ -183,6 +179,7 @@ class ApiService {
       if (decoded is Map<String, dynamic>) {
         return decoded;
       }
+
       throw Exception('Format response API tidak valid.');
     }
 

@@ -3,17 +3,50 @@ import 'building_data_page.dart';
 import 'package:flutter/material.dart';
 
 class LandDataPage extends StatefulWidget {
+  final int unitId;
   final String namaPerumahan;
   final String namaBlok;
   final String nomorRumah;
   final String luasTanah;
+  final double nilaiBangunanPerM2;
+  // Data tambahan untuk mode revisi
+  final int? monitoringId;
+  final int? penilaianId;
+
+  final double? nilaiTanahAwal;
+  final String? sumberDataTanahAwal;
+
+  final double? nilaiBangunanAwal;
+  final double? luasBangunanAwal;
+  final int? jumlahLantaiAwal;
+  final int? tahunBangunanAwal;
+
+  final String? kondisiBangunanAwal;
+  final String keteranganAwal;
+  final List<Map<String, dynamic>> fotoTersimpan;
+
+  final bool isRevision;
 
   const LandDataPage({
     super.key,
+    required this.unitId,
     required this.namaPerumahan,
     required this.namaBlok,
     required this.nomorRumah,
     required this.luasTanah,
+    required this.nilaiBangunanPerM2,
+    this.monitoringId,
+    this.penilaianId,
+    this.nilaiTanahAwal,
+    this.sumberDataTanahAwal,
+    this.nilaiBangunanAwal,
+    this.luasBangunanAwal,
+    this.jumlahLantaiAwal,
+    this.tahunBangunanAwal,
+    this.kondisiBangunanAwal,
+    this.keteranganAwal = '',
+    this.fotoTersimpan = const [],
+    this.isRevision = false,
   });
 
   @override
@@ -31,6 +64,17 @@ class _LandDataPageState extends State<LandDataPage> {
   final TextEditingController _nilaiTanahController = TextEditingController();
 
   final TextEditingController _sumberDataController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _nilaiTanahController.text =
+        widget.nilaiTanahAwal?.toString() ?? '';
+
+    _sumberDataController.text =
+        widget.sumberDataTanahAwal ?? '';
+  }
 
   @override
   void dispose() {
@@ -59,10 +103,6 @@ class _LandDataPageState extends State<LandDataPage> {
                       _buildInformationCard(),
 
                       const SizedBox(height: 10),
-
-                      _buildDemoLabel(),
-
-                      const SizedBox(height: 27),
 
                       _buildFieldLabel('Luas Tanah (m²)', required: true),
 
@@ -212,24 +252,6 @@ class _LandDataPageState extends State<LandDataPage> {
     );
   }
 
-  Widget _buildDemoLabel() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE4F4ED),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Text(
-        'Data demo fiktif',
-        style: TextStyle(
-          color: primaryGreen,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _buildFieldLabel(String label, {bool required = false}) {
     return RichText(
       text: TextSpan(
@@ -345,20 +367,36 @@ class _LandDataPageState extends State<LandDataPage> {
     );
   }
 
-  void _continueToNextPage() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  Future<void> _continueToNextPage() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    Navigator.push(
+    final hasil = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => BuildingDataPage(
+          unitId: widget.unitId,
           namaPerumahan: widget.namaPerumahan,
           namaBlok: widget.namaBlok,
           nomorRumah: widget.nomorRumah,
+          luasTanah: double.parse(widget.luasTanah),
+          nilaiTanahPerM2: double.parse(_nilaiTanahController.text.trim()),
+          sumberDataTanah: _sumberDataController.text.trim(),
+          nilaiBangunanPerM2: widget.nilaiBangunanPerM2,
+          monitoringId: widget.monitoringId,
+          penilaianId: widget.penilaianId,
+          nilaiBangunanAwal: widget.nilaiBangunanAwal,
+          luasBangunanAwal: widget.luasBangunanAwal,
+          jumlahLantaiAwal: widget.jumlahLantaiAwal,
+          tahunBangunanAwal: widget.tahunBangunanAwal,
+          kondisiBangunanAwal: widget.kondisiBangunanAwal,
+          keteranganAwal: widget.keteranganAwal,
+          fotoTersimpan: widget.fotoTersimpan,
+          isRevision: widget.isRevision,
         ),
       ),
     );
+    if (hasil == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 }

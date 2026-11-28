@@ -1,17 +1,47 @@
-import 'photo_page.dart';
-
 import 'package:flutter/material.dart';
 
+import 'photo_page.dart';
+
 class BuildingDataPage extends StatefulWidget {
+  final int unitId;
   final String namaPerumahan;
   final String namaBlok;
   final String nomorRumah;
+  final double luasTanah;
+  final double nilaiTanahPerM2;
+  final String sumberDataTanah;
+  final double nilaiBangunanPerM2;
+  final double? nilaiBangunanAwal;
+  final int? monitoringId;
+  final int? penilaianId;
+  final double? luasBangunanAwal;
+  final int? jumlahLantaiAwal;
+  final int? tahunBangunanAwal;
+  final String? kondisiBangunanAwal;
+  final String keteranganAwal;
+  final List<Map<String, dynamic>> fotoTersimpan;
+  final bool isRevision;
 
   const BuildingDataPage({
     super.key,
+    required this.unitId,
     required this.namaPerumahan,
     required this.namaBlok,
     required this.nomorRumah,
+    required this.luasTanah,
+    required this.nilaiTanahPerM2,
+    required this.sumberDataTanah,
+    required this.nilaiBangunanPerM2,
+    this.nilaiBangunanAwal,
+    this.monitoringId,
+    this.penilaianId,
+    this.luasBangunanAwal,
+    this.jumlahLantaiAwal,
+    this.tahunBangunanAwal,
+    this.kondisiBangunanAwal,
+    this.keteranganAwal = '',
+    this.fotoTersimpan = const [],
+    this.isRevision = false,  
   });
 
   @override
@@ -32,6 +62,22 @@ class _BuildingDataPageState extends State<BuildingDataPage> {
       TextEditingController();
 
   String? _kondisiBangunan;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _luasBangunanController.text =
+        widget.luasBangunanAwal?.toString() ?? '';
+
+    _jumlahLantaiController.text =
+        widget.jumlahLantaiAwal?.toString() ?? '';
+
+    _tahunBangunanController.text =
+        widget.tahunBangunanAwal?.toString() ?? '';
+
+    _kondisiBangunan = widget.kondisiBangunanAwal;
+  }
 
   @override
   void dispose() {
@@ -59,9 +105,6 @@ class _BuildingDataPageState extends State<BuildingDataPage> {
                     _buildInformationCard(),
 
                     const SizedBox(height: 10),
-
-                    _buildDemoBadge(),
-
                     const SizedBox(height: 27),
 
                     _buildLabel('Luas Bangunan (m²)', required: true),
@@ -172,24 +215,6 @@ class _BuildingDataPageState extends State<BuildingDataPage> {
     );
   }
 
-  Widget _buildDemoBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE3F3ED),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Text(
-        'Data demo fiktif',
-        style: TextStyle(
-          color: primaryGreen,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _buildLabel(String label, {bool required = false}) {
     return RichText(
       text: TextSpan(
@@ -257,7 +282,7 @@ class _BuildingDataPageState extends State<BuildingDataPage> {
 
   Widget _buildConditionDropdown() {
     return DropdownButtonFormField<String>(
-      value: _kondisiBangunan,
+      initialValue: _kondisiBangunan,
       hint: const Text(
         'Pilih kondisi bangunan',
         style: TextStyle(fontSize: 14, color: darkGreen),
@@ -350,20 +375,43 @@ class _BuildingDataPageState extends State<BuildingDataPage> {
     );
   }
 
-  void _continueToNextPage() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+ Future<void> _continueToNextPage() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    Navigator.push(
+    final hasil = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => PhotoPage(
+          unitId: widget.unitId,
           namaPerumahan: widget.namaPerumahan,
           namaBlok: widget.namaBlok,
           nomorRumah: widget.nomorRumah,
+          luasTanah: widget.luasTanah,
+          nilaiTanahPerM2: widget.nilaiTanahPerM2,
+          sumberDataTanah: widget.sumberDataTanah,
+          nilaiBangunanPerM2: widget.nilaiBangunanPerM2,
+          isRevision: widget.isRevision,
+          luasBangunan: double.parse(
+            _luasBangunanController.text.trim(),
+          ),
+          jumlahLantai: int.parse(
+            _jumlahLantaiController.text.trim(),
+          ),  
+          tahunBangunan: _tahunBangunanController.text.trim().isEmpty
+              ? null
+              : int.parse(_tahunBangunanController.text.trim()),
+          kondisiBangunan: _kondisiBangunan!,
+
+          // Data untuk proses revisi
+          monitoringId: widget.monitoringId,
+          penilaianId: widget.penilaianId,
+          keteranganAwal: widget.keteranganAwal,
+          fotoTersimpan: widget.fotoTersimpan,
         ),
       ),
     );
+    if (hasil == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 }

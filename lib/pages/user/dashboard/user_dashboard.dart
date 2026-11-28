@@ -17,10 +17,21 @@ class UserDashboardPage extends StatefulWidget {
 class _UserDashboardPageState extends State<UserDashboardPage> {
   int _selectedIndex = 0;
 
+  final GlobalKey<HistoryPageState> _historyKey = GlobalKey<HistoryPageState>();
+
   static const Color primaryGreen = Color(0xFF006B50);
   static const Color darkGreen = Color(0xFF173D32);
   static const Color backgroundColor = Color(0xFFF4F8F6);
   static const Color secondaryText = Color(0xFF718078);
+
+  // Membuka halaman riwayat dengan filter yang dipilih.
+  void _bukaRiwayat(String filter) {
+    _historyKey.currentState?.setFilter(filter);
+
+    setState(() {
+      _selectedIndex = 1;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +40,9 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       body: SafeArea(
         child: IndexedStack(
           index: _selectedIndex,
-
           children: [
             _buildDashboard(),
-            const HistoryPage(),
+            HistoryPage(key: _historyKey),
             ProfilePage(namaPengguna: widget.namaPengguna),
           ],
         ),
@@ -98,7 +108,6 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
           _buildSummaryCard(
             icon: Icons.folder_open_outlined,
             title: 'Draft Saya',
-            count: '2',
             description: 'Monitoring belum diajukan',
             color: const Color(0xFFE8F4EE),
             iconColor: primaryGreen,
@@ -110,15 +119,10 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
           _buildSummaryCard(
             icon: Icons.hourglass_top_rounded,
             title: 'Menunggu Approval',
-            count: '3',
             description: 'Monitoring sedang diperiksa',
             color: const Color(0xFFEAF1F8),
             iconColor: const Color(0xFF35658A),
-            onTap: () {
-              setState(() {
-                _selectedIndex = 1;
-              });
-            },
+            onTap: () => _bukaRiwayat('Menunggu Approval'),
           ),
 
           const SizedBox(height: 10),
@@ -126,15 +130,10 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
           _buildSummaryCard(
             icon: Icons.check_circle_outline,
             title: 'Disetujui',
-            count: '5',
             description: 'Monitoring telah disetujui',
             color: const Color(0xFFE8F4EE),
             iconColor: primaryGreen,
-            onTap: () {
-              setState(() {
-                _selectedIndex = 1;
-              });
-            },
+            onTap: () => _bukaRiwayat('Disetujui'),
           ),
 
           const SizedBox(height: 28),
@@ -257,7 +256,6 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
   Widget _buildSummaryCard({
     required IconData icon,
     required String title,
-    required String count,
     required String description,
     required Color color,
     required Color iconColor,
@@ -300,7 +298,9 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
                       color: darkGreen,
                     ),
                   ),
+
                   const SizedBox(height: 4),
+
                   Text(
                     description,
                     style: const TextStyle(fontSize: 11, color: secondaryText),
@@ -308,17 +308,6 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
                 ],
               ),
             ),
-
-            Text(
-              count,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: iconColor,
-              ),
-            ),
-
-            const SizedBox(width: 8),
 
             const Icon(Icons.chevron_right, size: 20, color: secondaryText),
           ],
@@ -407,44 +396,6 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
   }
 
   // =========================
-  // HALAMAN RIWAYAT DAN PROFIL
-  // =========================
-
-  Widget _buildPlaceholder({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: primaryGreen, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: darkGreen,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: secondaryText),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =========================
   // BOTTOM NAVIGATION
   // =========================
 
@@ -457,6 +408,10 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       child: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          if (index == 1) {
+            _historyKey.currentState?.setFilter('Semua');
+          }
+
           setState(() {
             _selectedIndex = index;
           });
