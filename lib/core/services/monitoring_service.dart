@@ -13,14 +13,18 @@ class MonitoringService {
     return data.map((json) => MonitoringModel.fromJson(json)).toList();
   }
 
-  // Mengambil semua draft milik User yang sedang login
+  // Mengambil Draft biasa dan monitoring yang sedang diperbaiki.
   static Future<List<Map<String, dynamic>>> getDraft() async {
     final response = await ApiService.get('monitoring');
 
     final List<dynamic> data = response['data'] ?? [];
 
     return data
-        .where((item) => item['status']?.toString() == 'DRAFT')
+        .where((item) {
+          final status = item['status']?.toString();
+
+          return status == 'DRAFT' || status == 'PERLU_REVISI';
+        })
         .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
   }
@@ -34,7 +38,7 @@ class MonitoringService {
     return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
-  // Mengambil Draft aktif milik user untuk satu unit.
+  // Memeriksa monitoring aktif pada satu unit.
   static Future<Map<String, dynamic>?> getDraftForUnit(int unitId) async {
     final response = await ApiService.get('unit/$unitId/draft');
     final data = response['data'];

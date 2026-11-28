@@ -143,9 +143,16 @@ class _DraftListPageState extends State<DraftListPage> {
       final detail = await MonitoringService.getDetailMonitoring(id);
       if (!mounted) return;
 
-      if (detail['status']?.toString() != 'DRAFT') {
+      final status = detail['status']?.toString();
+      final isRevision = status == 'PERLU_REVISI';
+
+      if (status != 'DRAFT' && !isRevision) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Monitoring ini bukan lagi berstatus Draft.')),
+          const SnackBar(
+            content: Text(
+              'Monitoring ini bukan lagi berstatus Draft atau Perlu Revisi.',
+            ),
+          ),
         );
         await _loadDrafts();
         return;
@@ -155,10 +162,11 @@ class _DraftListPageState extends State<DraftListPage> {
       final blok = _getMap(unit, 'blok');
       final perumahan = _getMap(blok, 'perumahan');
       final penilaian = _getMap(detail, 'penilaian');
+
       final unitId = int.tryParse(unit['id']?.toString() ?? '');
 
       if (unitId == null) {
-        throw Exception('ID unit tidak ditemukan pada Draft.');
+        throw Exception('ID unit tidak ditemukan.');
       }
 
       double parseDouble(dynamic value, {double fallback = 0}) {
@@ -170,17 +178,15 @@ class _DraftListPageState extends State<DraftListPage> {
       }
 
       final fotoData = detail['foto_monitoring'] ?? detail['fotoMonitoring'];
+
       final List<Map<String, dynamic>> fotoTersimpan = fotoData is List
           ? fotoData
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList()
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
           : [];
 
       if (penilaian.isEmpty) {
-        // Draft seperti monitoring ID 7 belum mempunyai penilaian.
-        // Pulihkan ke tahap Data Tanah, tetapi tetap gunakan monitoring_id lama
-        // agar penyimpanan berikutnya tidak membuat monitoring baru.
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -192,14 +198,19 @@ class _DraftListPageState extends State<DraftListPage> {
               luasTanah: _getText(unit['luas_tanah'], fallback: '0'),
               nilaiBangunanPerM2: parseDouble(unit['nilai_bangunan_per_m2']),
               monitoringId: id,
-              kondisiBangunanAwal: _getText(detail['kondisi'], fallback: 'Baik'),
+              kondisiBangunanAwal: _getText(
+                detail['kondisi'],
+                fallback: 'Baik',
+              ),
               keteranganAwal: _getText(detail['keterangan'], fallback: ''),
               fotoTersimpan: fotoTersimpan,
+              isRevision: isRevision,
             ),
           ),
         );
       } else {
         final penilaianId = int.tryParse(penilaian['id']?.toString() ?? '');
+
         if (penilaianId == null) {
           throw Exception('ID penilaian tidak valid.');
         }
@@ -218,7 +229,9 @@ class _DraftListPageState extends State<DraftListPage> {
                 penilaian['sumber_data_tanah'],
                 fallback: '',
               ),
-              nilaiBangunanPerM2: parseDouble(penilaian['nilai_bangunan_per_m2']),
+              nilaiBangunanPerM2: parseDouble(
+                penilaian['nilai_bangunan_per_m2'],
+              ),
               luasBangunan: parseDouble(penilaian['luas_bangunan']),
               jumlahLantai: parseInt(penilaian['jumlah_lantai'], fallback: 1),
               tahunBangunan: penilaian['tahun_bangunan'] == null
@@ -229,6 +242,7 @@ class _DraftListPageState extends State<DraftListPage> {
               penilaianId: penilaianId,
               keteranganAwal: _getText(detail['keterangan'], fallback: ''),
               fotoTersimpan: fotoTersimpan,
+              isRevision: isRevision,
             ),
           ),
         );
@@ -238,6 +252,7 @@ class _DraftListPageState extends State<DraftListPage> {
       await _loadDrafts();
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memulihkan Draft: $e'),
@@ -272,7 +287,10 @@ class _DraftListPageState extends State<DraftListPage> {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Hapus Draft'),
           ),
@@ -488,6 +506,7 @@ class _DraftListPageState extends State<DraftListPage> {
 
   Widget _buildDraftCard(Map<String, dynamic> draft) {
     final rumah = _getInformasiRumah(draft);
+    final isRevision = draft['status']?.toString() == 'PERLU_REVISI';
 
     final tanggal =
         draft['updated_at'] ??
@@ -549,15 +568,19 @@ class _DraftListPageState extends State<DraftListPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4DF),
+                  color: isRevision
+                      ? const Color(0xFFFFF0E0)
+                      : const Color(0xFFFFF4DF),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
-                  'Draft',
+                child: Text(
+                  isRevision ? 'Perlu Revisi' : 'Draft',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF9A6B16),
+                    color: isRevision
+                        ? const Color(0xFFB76B16)
+                        : const Color(0xFF9A6B16),
                   ),
                 ),
               ),
@@ -586,9 +609,12 @@ class _DraftListPageState extends State<DraftListPage> {
             child: ElevatedButton.icon(
               onPressed: () => _lanjutkanDraft(draft),
               icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text(
-                'Lanjutkan',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              label: Text(
+                isRevision ? 'Perbaiki Data' : 'Lanjutkan',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
@@ -600,7 +626,7 @@ class _DraftListPageState extends State<DraftListPage> {
               ),
             ),
           ),
-          if (_isIncompleteDraft(draft)) ...[
+          if (!isRevision && _isIncompleteDraft(draft)) ...[
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,

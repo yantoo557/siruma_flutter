@@ -56,9 +56,9 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
     ).then((_) => _muatAktivitasTerbaru());
   }
 
-  // Membuka halaman riwayat dengan filter yang dipilih.
   void _bukaRiwayat(String filter) {
     _historyKey.currentState?.setFilter(filter);
+    _historyKey.currentState?.refreshRiwayat();
 
     setState(() {
       _selectedIndex = 1;
@@ -200,9 +200,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
     if (_aktivitasLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: CircularProgressIndicator(color: primaryGreen),
-        ),
+        child: Center(child: CircularProgressIndicator(color: primaryGreen)),
       );
     }
 
@@ -593,6 +591,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
         onTap: (index) {
           if (index == 1) {
             _historyKey.currentState?.setFilter('Semua');
+            _historyKey.currentState?.refreshRiwayat();
           }
 
           setState(() {

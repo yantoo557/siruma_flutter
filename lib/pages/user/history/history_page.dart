@@ -30,21 +30,26 @@ class HistoryPageState extends State<HistoryPage> {
     });
   }
 
-  // Memuat ulang data dari server.
+  // Memuat ulang data riwayat dari server.
   Future<void> _muatUlang() async {
+    if (!mounted) return;
+
     setState(() {
       _monitoringFuture = MonitoringService.getAllMonitoring();
     });
 
     await _monitoringFuture;
   }
+
+  // Fungsi publik agar dapat dipanggil dari UserDashboardPage.
+  Future<void> refreshRiwayat() async {
+    await _muatUlang();
+  }
+
   double _angka(dynamic value, {double fallback = 0}) {
     if (value == null) return fallback;
 
-    return double.tryParse(
-          value.toString().replaceAll(',', '.'),
-        ) ??
-        fallback;
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? fallback;
   }
 
   int? _angkaInt(dynamic value) {
@@ -93,9 +98,9 @@ class HistoryPageState extends State<HistoryPage> {
 
       final fotoTersimpan = monitoring['fotoMonitoring'] is List
           ? (monitoring['fotoMonitoring'] as List)
-              .whereType<Map>()
-              .map((foto) => Map<String, dynamic>.from(foto))
-              .toList()
+                .whereType<Map>()
+                .map((foto) => Map<String, dynamic>.from(foto))
+                .toList()
           : <Map<String, dynamic>>[];
 
       if (!mounted) return;
@@ -105,8 +110,7 @@ class HistoryPageState extends State<HistoryPage> {
         MaterialPageRoute(
           builder: (context) => LandDataPage(
             unitId: _angkaInt(unit['id']) ?? 0,
-            namaPerumahan:
-                perumahan['nama_perumahan']?.toString() ?? '-',
+            namaPerumahan: perumahan['nama_perumahan']?.toString() ?? '-',
             namaBlok: blok['nama_blok']?.toString() ?? '-',
             nomorRumah: unit['nomor_unit']?.toString() ?? '-',
 
@@ -128,30 +132,23 @@ class HistoryPageState extends State<HistoryPage> {
                 ? null
                 : _angka(penilaian['nilai_tanah_per_m2']),
 
-            sumberDataTanahAwal:
-                penilaian['sumber_data_tanah']?.toString(),
+            sumberDataTanahAwal: penilaian['sumber_data_tanah']?.toString(),
 
-            nilaiBangunanAwal:
-                penilaian['nilai_bangunan_per_m2'] == null
-                    ? null
-                    : _angka(penilaian['nilai_bangunan_per_m2']),
+            nilaiBangunanAwal: penilaian['nilai_bangunan_per_m2'] == null
+                ? null
+                : _angka(penilaian['nilai_bangunan_per_m2']),
 
-            luasBangunanAwal:
-                penilaian['luas_bangunan'] == null
-                    ? null
-                    : _angka(penilaian['luas_bangunan']),
+            luasBangunanAwal: penilaian['luas_bangunan'] == null
+                ? null
+                : _angka(penilaian['luas_bangunan']),
 
-            jumlahLantaiAwal:
-                _angkaInt(penilaian['jumlah_lantai']),
+            jumlahLantaiAwal: _angkaInt(penilaian['jumlah_lantai']),
 
-            tahunBangunanAwal:
-                _angkaInt(penilaian['tahun_bangunan']),
+            tahunBangunanAwal: _angkaInt(penilaian['tahun_bangunan']),
 
-            kondisiBangunanAwal:
-                monitoring['kondisi']?.toString(),
+            kondisiBangunanAwal: monitoring['kondisi']?.toString(),
 
-            keteranganAwal:
-                monitoring['keterangan']?.toString() ?? '',
+            keteranganAwal: monitoring['keterangan']?.toString() ?? '',
 
             fotoTersimpan: fotoTersimpan,
             isRevision: true,

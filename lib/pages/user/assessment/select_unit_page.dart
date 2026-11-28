@@ -5,7 +5,6 @@ import '../../../core/services/monitoring_service.dart';
 import '../../../models/blok_model.dart';
 import '../../../models/unit_model.dart';
 import 'land_data_page.dart';
-import '../draft/draft_list_page.dart';
 
 class SelectUnitPage extends StatefulWidget {
   final int perumahanId;
@@ -537,35 +536,48 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
       if (!mounted) return;
 
       if (draft != null) {
-        final action = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Draft sudah tersedia'),
-            content: Text(
+        final status = draft['status']?.toString() ?? '';
+        final isOwner = draft['is_owner'] == true;
+
+        String pesan;
+
+        if (status == 'DRAFT' && isOwner) {
+          pesan =
               'Rumah ${unitTerpilih.nomorUnit} sudah memiliki Draft monitoring. '
-              'Silakan buka Draft Saya untuk melanjutkan Draft tersebut atau '
-              'menghapusnya jika belum lengkap.',
-            ),
+              'Silakan lanjutkan melalui menu Draft Saya.';
+        } else if (status == 'DIAJUKAN') {
+          pesan =
+              'Rumah ${unitTerpilih.nomorUnit} sedang dalam proses pengajuan '
+              'Approval. Silakan tunggu keputusan Approval.';
+        } else if (status == 'PERLU_REVISI' && isOwner) {
+          pesan =
+              'Rumah ${unitTerpilih.nomorUnit} memiliki pengajuan yang perlu '
+              'direvisi. Silakan lanjutkan melalui menu Revisi Saya.';
+        } else if (status == 'DISETUJUI') {
+          pesan =
+              'Rumah ${unitTerpilih.nomorUnit} telah selesai dinilai dan '
+              'disetujui oleh Super Approval. Penilaian baru untuk unit ini '
+              'tidak dapat dilakukan.';
+        } else {
+          pesan =
+              'Rumah ${unitTerpilih.nomorUnit} masih memiliki monitoring aktif. '
+              'Monitoring baru belum dapat dibuat.';
+        }
+
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Unit belum dapat digunakan'),
+            content: Text(pesan),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Buka Draft Saya'),
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Mengerti'),
               ),
             ],
           ),
         );
 
-        if (action == true && mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const DraftListPage()),
-          );
-        }
         return;
       }
 
@@ -594,5 +606,4 @@ class _SelectUnitPageState extends State<SelectUnitPage> {
       if (mounted) setState(() => _isContinuing = false);
     }
   }
-
 }
