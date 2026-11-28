@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/audit_log_service.dart';
+import '../../../models/audit_log_model.dart';
+import '../activity/user_activity_page.dart';
 import '../assessment/select_perumahan_page.dart';
 import '../draft/draft_list_page.dart';
 import '../history/history_page.dart';
@@ -16,6 +19,8 @@ class UserDashboardPage extends StatefulWidget {
 
 class _UserDashboardPageState extends State<UserDashboardPage> {
   int _selectedIndex = 0;
+  List<AuditLogModel> _aktivitasTerbaru = [];
+  bool _aktivitasLoading = true;
 
   final GlobalKey<HistoryPageState> _historyKey = GlobalKey<HistoryPageState>();
 
@@ -23,6 +28,33 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
   static const Color darkGreen = Color(0xFF173D32);
   static const Color backgroundColor = Color(0xFFF4F8F6);
   static const Color secondaryText = Color(0xFF718078);
+
+  @override
+  void initState() {
+    super.initState();
+    _muatAktivitasTerbaru();
+  }
+
+  Future<void> _muatAktivitasTerbaru() async {
+    try {
+      final response = await AuditLogService.getRiwayat(page: 1);
+      if (!mounted) return;
+      setState(() {
+        _aktivitasTerbaru = response.data.take(3).toList();
+        _aktivitasLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _aktivitasLoading = false);
+    }
+  }
+
+  void _bukaSemuaAktivitas() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const UserActivityPage()),
+    ).then((_) => _muatAktivitasTerbaru());
+  }
 
   // Membuka halaman riwayat dengan filter yang dipilih.
   void _bukaRiwayat(String filter) {
@@ -138,18 +170,169 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
 
           const SizedBox(height: 28),
 
-          _buildSectionTitle('Aktivitas Terbaru'),
-
-          const SizedBox(height: 12),
-
-          _buildInformationCard(
-            icon: Icons.history,
-            title: 'Belum ada aktivitas monitoring',
-            description: 'Aktivitas terbaru Anda akan tampil di sini.',
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSectionTitle('Aktivitas Terbaru'),
+              TextButton(
+                onPressed: _bukaSemuaAktivitas,
+                child: const Text(
+                  'Lihat Semua',
+                  style: TextStyle(
+                    color: primaryGreen,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
+
+          const SizedBox(height: 8),
+
+          _buildAktivitasTerbaru(),
         ],
       ),
     );
+  }
+
+  Widget _buildAktivitasTerbaru() {
+    if (_aktivitasLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: CircularProgressIndicator(color: primaryGreen),
+        ),
+      );
+    }
+
+    if (_aktivitasTerbaru.isEmpty) {
+      return _buildInformationCard(
+        icon: Icons.history,
+        title: 'Belum ada aktivitas',
+        description: 'Aktivitas yang Anda lakukan akan tampil di sini.',
+      );
+    }
+
+    return Column(
+      children: _aktivitasTerbaru.map((item) {
+        final detail = (item.keterangan ?? '').trim();
+        final waktu = _formatWaktuAktivitas(item.createdAt);
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFFE1EBE5)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDF7F2),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  _ikonAktivitas(item.tabel),
+                  color: primaryGreen,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_labelAktivitas(item.aktivitas)} ${item.tabel.replaceAll('_', ' ')}',
+                      style: const TextStyle(
+                        color: darkGreen,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (detail.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: secondaryText,
+                          fontSize: 11,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Text(
+                      waktu,
+                      style: const TextStyle(
+                        color: secondaryText,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  IconData _ikonAktivitas(String tabel) {
+    switch (tabel.toLowerCase()) {
+      case 'monitoring':
+        return Icons.fact_check_outlined;
+      case 'penilaian':
+        return Icons.assessment_outlined;
+      case 'foto_monitoring':
+        return Icons.photo_camera_outlined;
+      case 'approval':
+        return Icons.verified_outlined;
+      default:
+        return Icons.history_rounded;
+    }
+  }
+
+  String _labelAktivitas(String aktivitas) {
+    switch (aktivitas.toUpperCase()) {
+      case 'TAMBAH':
+      case 'CREATE':
+        return 'Membuat';
+      case 'EDIT':
+      case 'UPDATE':
+        return 'Memperbarui';
+      case 'HAPUS':
+      case 'DELETE':
+        return 'Menghapus';
+      case 'AJUKAN':
+      case 'SUBMIT':
+        return 'Mengajukan';
+      default:
+        return aktivitas;
+    }
+  }
+
+  String _formatWaktuAktivitas(String? value) {
+    if (value == null || value.isEmpty) return 'Waktu tidak tersedia';
+    try {
+      final date = DateTime.parse(value).toLocal();
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final hour = date.hour.toString().padLeft(2, '0');
+      final minute = date.minute.toString().padLeft(2, '0');
+      return '$day/$month/${date.year} • $hour:$minute';
+    } catch (_) {
+      return value;
+    }
   }
 
   // =========================
@@ -160,7 +343,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DraftListPage()),
-    );
+    ).then((_) => _muatAktivitasTerbaru());
   }
 
   // =========================
@@ -229,7 +412,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
             MaterialPageRoute(
               builder: (context) => const SelectPerumahanPage(),
             ),
-          );
+          ).then((_) => _muatAktivitasTerbaru());
         },
         icon: const Icon(Icons.add_circle_outline, size: 22),
         label: const Text(
